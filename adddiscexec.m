@@ -1,4 +1,4 @@
-function N = adddiscexec(N,sysid,sys,inputid,nodeid)
+function N = adddiscexec(N,sysid,sys,inputid,nodeid,nowarning)
 % N = adddiscexec(N,sysid,sys,inputid,nodeid)
 %
 % Add an execution of a previously defined discrete-time system.
@@ -20,12 +20,21 @@ function N = adddiscexec(N,sysid,sys,inputid,nodeid)
 %          system (which has a scalar output equal to zero).
 % nodeid   The ID of the timing node where this discrete-time
 %          system should be executed again.
+% nowarning If non-empty, prevents a warning from being generated if the
+%           system sample time does not match the model period time.
 %
 % NOTE: It is not possible to change the noise or the cost of the
 %       system.
 
 if (nargin < 5)
   error('To few arguments to function: N = adddiscexec(N,sysid,sys,inputid,nodeid)');
+end
+
+if nargin < 6 | isempty(nowarning)
+   nowarning = [];
+end
+if N.period == 0 
+	nowarning = 1; % Turn off warnings for aperiodic systems
 end
 
 base = 0;
@@ -64,7 +73,7 @@ else
     error('System is not discrete time.');
   end
 
-  if sys.Ts ~= -1 & sys.Ts ~= N.dt*N.period
+  if (sys.Ts ~= -1) & (abs(sys.Ts-N.dt*N.period)>1e-6*sys.Ts) & isempty(nowarning)
     warning('System sample time is ignored.')
   end
 

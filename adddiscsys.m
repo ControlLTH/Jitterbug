@@ -1,4 +1,4 @@
-function N = adddiscsys(N,sysid,sys,inputid,nodeid,Q,R)
+function N = adddiscsys(N,sysid,sys,inputid,nodeid,Q,R,nowarning)
 % N = adddiscsys(N,sysid,sys,inputid,nodeid)
 % N = adddiscsys(N,sysid,sys,inputid,nodeid,Q,R)
 %
@@ -39,12 +39,21 @@ function N = adddiscsys(N,sysid,sys,inputid,nodeid,Q,R)
 % R        The noise covariance matrix. Added each time the system
 %          is updated. Note that noise may also enter the system
 %          from the output nose of another system.
+% nowarning If nonempty, supresses the warning if the system sample time
+%           does not match the model period time.
 %
 % Any optional arguments can be left as [] for default values.
 
 % Sanity checks
 if (nargin < 5)
   error('To few arguments to function: N = adddiscsys(N,sysid,sys,inputid,nodeid)');
+end
+
+if nargin < 8 | isempty(nowarning)
+   nowarning = [];
+end
+if N.period == 0 
+	nowarning = 1; % Turn off warnings for aperiodic systems
 end
 
 origclass = class(sys);
@@ -65,7 +74,7 @@ if ~isdt(sys)
   error('System is not discrete time.');
 end
 
-if (sys.Ts ~= -1) & (abs(sys.Ts-N.dt*N.period)>1e-6*sys.Ts)
+if ~isempty(sys.A) && (sys.Ts ~= -1) && (abs(sys.Ts-N.dt*N.period)>1e-6*sys.Ts) && isempty(nowarning)
   warning('System sample time is ignored.')
 end
 
@@ -128,19 +137,17 @@ else
     end
    case {'tf','zpk'}
     if (size(R,1) == r)
-      %% Alternative syntax added by AC 2006-04-20:
-      %% interpret r*r matrix as input noise only
-      R = blkdiag(R,zeros(p));
+      %% Alternative syntax: interpret r*r matrix as input noise only
+      R = blkdiag(R,zeros(p)); % Assume zero output noise
     end
     if (size(R,1) ~= outinsize | size(R,2) ~= outinsize)
       error(['For transfer function systems, the noise R should be either' ... 
 	     ' a (r+p)*(r+p) matrix, where r is the number of inputs' ...
 	      ' and p is the number of outputs; or a r*r matrix,' ...
 	       ' where r is the input of inputs'])
-    else
-      xutoyu = blkdiag(B,eye(p));
-      R = xutoyu*R*xutoyu' + blkdiag(zeros(n),D*R(1:r,1:r)*D');
-      %% Bugfix by AC 2004-08-03: added term for direct term noise
+	 else
+		 % Translate input noise into state and output noise
+		 R = [B;D]*R(1:r,1:r)*[B;D]'; % Bugfix 2018-12-02
     end
   end
 end

@@ -50,13 +50,13 @@ if (isempty(Ptau))
 else
   if size(Ptau,1) == 1 
     if (abs(sum(Ptau)-1) > 10*eps)
-      warning('Ptau has been corrected to sum to one')
+      disp('Warning: Ptau has been corrected to sum to one')
       Ptau = Ptau/sum(Ptau);
     end
-  elseif size(Ptau,1) == 2
-    if (sum(Ptau') ~= ones(1,size(Ptau,1)))
-      warning('Each row in Ptau must sum to one (not corrected!)')
-    end
+	else
+		if (sum(Ptau') ~= ones(1,size(Ptau,1)))
+      disp('Warning: Each row in Ptau must sum to one')
+		end
   end
 end
 

@@ -1,6 +1,6 @@
-function N = addcontsys(N,sysid,sys,inputid,Q,R1,R2)
+function N = addcontsys(N,sysid,sys,inputid,Q,R1,R2,impulse)
 % N = addcontsys(N,sysid,sys,inputid)
-% N = addcontsys(N,sysid,sys,inputid,Q,R1,R2)
+% N = addcontsys(N,sysid,sys,inputid,Qc,R1c,R2,impulse)
 %
 % Add a continuous-time linear system "sys" to the Jitterbug system N.
 % u(t) --> sys --> y(t)
@@ -24,16 +24,16 @@ function N = addcontsys(N,sysid,sys,inputid,Q,R1,R2)
 %          should be taken from the NULL system (which has a scalar
 %          output equal to zero).
 %
-% Optional arguments (default to zero):
-% Q        The cost function is [x(t);u(t)]'*Q*[x(t);u(t)] (for
-%          state-space systems) or [y(t);u(t)]'*Q*[y(t);u(t)]
+% Optional arguments (assumed zero if not specified):
+% Qc       The cost function is [x(t);u(t)]'*Qc*[x(t);u(t)] (for
+%          state-space systems) or [y(t);u(t)]'*Qc*[y(t);u(t)]
 %          (for transfer-function/zpk systems).
-% R1       The state or input noise covariance matrix.
+% R1c      The state or input noise covariance matrix.
 % R2       The discrete-time measurement noise covariance matrix.
 %          Note that measurement noise will only be added when the
 %          system is sampled by a discrete-time system. It WILL NOT
 %          affect any connected CONTINUOUS-TIME systems. 
-%
+% impulse  If non-empty, impulse (rather than ZOH) inputs are assumed.
 % Any optional arguments can be left as [] for default values.
 
 % Sanity checks
@@ -81,6 +81,8 @@ A = sys.a;
 B = sys.b;
 C = sys.c;
 D = sys.d;
+
+n = size(A,1);
 
 if (max(max(abs(D))) > eps) 
   error('The continuous system has a direct term, which is not supported.');
@@ -139,6 +141,27 @@ else
   end
 end
 
+if nargin < 8
+	impulse = [];
+end
+
+% if ~isempty(impulse) && (L > 0)
+% 	error('Transport delay AND impulse inputs cannot be handled (yet)')
+% end
+
+if ~isempty(impulse)
+    if norm(Q(n+1:end,n+1:end)) > 0 || norm(Q(1:n,n+1:end)) > 0
+        error('Control signal cost must be zero for impulse control')
+    end
+	Q1 = Q(1:n,1:n);
+	Q12 = Q(1:n,n+1:end);
+	Q2 = Q(n+1:end,n+1:end);
+	if norm(Q12) > 0 
+		warning('Cross-terms between x and u ignored!')
+	end
+	Q = blkdiag(Q1,Q2/(N.period*N.dt)^2);
+end
+
 S = struct('id',sysid,'type',1, 'sysoption', 0);
 
 if L > 0 % handle transport delays
@@ -157,4 +180,6 @@ S.L = L;
 S.inputid = inputid;
 S.outputs = size(C,1);
 S.origclass = origclass;
+S.impulse = impulse;
 N.systems = {N.systems{:} S};
+

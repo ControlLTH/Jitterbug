@@ -65,9 +65,9 @@ if (period == 0)
   % Use iterative method
   disp(sprintf('System is aperiodic, using iterative method...'));
   if (nargin == 1)
-    [J,P] = calccostiter(N);
+    [J,P] = calccostaperiodic(N);
   else
-    [J,P] = calccostiter(N,options);
+    [J,P] = calccostaperiodic(N,options);
   end
   F = [];
   return;
@@ -219,10 +219,11 @@ if (sum(prob(2:end,period+1)) > 10*eps)
   disp('System is not periodic!');
 end
 % Solve P = Phi*P+R using P = (I-Phi)\R
-P = reshape((eye(size(Phi,1))-Phi(:,:,1,period+1))\reshape(R(:,:,1,period+1),size(R,1)^2,1),size(R,1),size(R,1));
-% If it fails, use pseudo-inverse instead.
-if (isinf(P(1,1)))
-  disp('Using bad precision numerics...');
+cond_nbr = cond((eye(size(Phi,1))-Phi(:,:,1,period+1)));
+if cond_nbr < 1e12 
+  P = reshape((eye(size(Phi,1))-Phi(:,:,1,period+1))\reshape(R(:,:,1,period+1),size(R,1)^2,1),size(R,1),size(R,1));
+else
+  disp('Warning: Using bad precision numerics...');
   P = reshape(pinv(eye(size(Phi,1))-Phi(:,:,1,period+1))*reshape(R(:,:,1,period+1),size(R,1)^2,1),size(R,1),size(R,1));
 end
 Pnext = reshape(Phi(:,:,1,period+1)*reshape(P,size(R,1)^2,1)+reshape(R(:,:,1,period+1),size(R,1)^2,1),size(R,1),size(R,1));
